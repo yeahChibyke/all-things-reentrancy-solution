@@ -6,9 +6,9 @@ import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 interface IERC20BurnableMintable {
-	function mint(address to, uint256 amount) external;
-	function burn(address from, uint256 amount) external;
-	function balanceOf(address account) external view returns (uint256);
+    function mint(address to, uint256 amount) external;
+    function burn(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
     function totalSupply() external view returns (uint256);
 }
 
@@ -16,31 +16,17 @@ interface IERC20BurnableMintable {
 * @notice I quickly simplified an implementation from a random GH repo, do not trust this implementation
 */
 contract VulnerableLiquidityPool is ReentrancyGuard {
-
     IERC20 public immutable stEth;
     IERC20BurnableMintable public immutable lpToken;
-
 
     constructor(address steth_token, address lp_token) {
         stEth = IERC20(steth_token);
         lpToken = IERC20BurnableMintable(lp_token);
     }
 
-
-    function addLiquidity(uint256 stEth_amount, uint256 eth_amount)
-        external
-        payable
-        nonReentrant()
-        returns (uint256)
-    {
-        require(
-            stEth.transferFrom(msg.sender, address(this), stEth_amount),
-            "stEth Transfer Failed"
-        );
-        require(
-            msg.value == eth_amount,
-            "Insufficient Eth transfer"
-        );
+    function addLiquidity(uint256 stEth_amount, uint256 eth_amount) external payable nonReentrant returns (uint256) {
+        require(stEth.transferFrom(msg.sender, address(this), stEth_amount), "stEth Transfer Failed");
+        require(msg.value == eth_amount, "Insufficient Eth transfer");
 
         /*
         Check if the ratio of tokens supplied is proportional
@@ -52,10 +38,7 @@ contract VulnerableLiquidityPool is ReentrancyGuard {
         uint256 eth_reserve = address(this).balance - eth_amount;
 
         if (stEth_reserve > 0 || eth_reserve > 0) {
-            require(
-                eth_amount * stEth_reserve == stEth_amount * eth_reserve,
-                "Unbalanced Liquidity Provided"
-            );
+            require(eth_amount * stEth_reserve == stEth_amount * eth_reserve, "Unbalanced Liquidity Provided");
         }
 
         /*
@@ -76,10 +59,8 @@ contract VulnerableLiquidityPool is ReentrancyGuard {
         if (totalLiquidity == 0) {
             lp_amount = sqrt(stEth_amount * eth_amount);
         } else {
-            lp_amount = min(
-                ((stEth_amount * totalLiquidity) / stEth_reserve),
-                ((eth_amount * totalLiquidity) / eth_reserve)
-            );
+            lp_amount =
+                min(((stEth_amount * totalLiquidity) / stEth_reserve), ((eth_amount * totalLiquidity) / eth_reserve));
         }
 
         require(lp_amount > 0, "No Liquidity Shares Minted");
@@ -89,16 +70,8 @@ contract VulnerableLiquidityPool is ReentrancyGuard {
         return lp_amount;
     }
 
-
-    function removeLiquidity(uint256 lp_amount)
-        external
-        nonReentrant()
-        returns (uint256, uint256)
-    {
-        require(
-            lpToken.balanceOf(msg.sender) >= lp_amount,
-            "Insufficient liquidity shares"
-        );
+    function removeLiquidity(uint256 lp_amount) external nonReentrant returns (uint256, uint256) {
+        require(lpToken.balanceOf(msg.sender) >= lp_amount, "Insufficient liquidity shares");
 
         // Get balance of both tokens
         uint256 stEth_balance = stEth.balanceOf(address(this));
@@ -108,15 +81,12 @@ contract VulnerableLiquidityPool is ReentrancyGuard {
         uint256 stEth_amount = (lp_amount * stEth_balance) / totalLiquidity;
         uint256 eth_amount = (lp_amount * eth_balance) / totalLiquidity;
 
-        require(
-            stEth_amount > 0 && eth_amount > 0,
-            "Insufficient transfer amounts"
-        );
+        require(stEth_amount > 0 && eth_amount > 0, "Insufficient transfer amounts");
 
         // Burn user liquidity shares
         lpToken.burn(msg.sender, lp_amount);
         // Transfer tokens to user
-        (bool success, ) = payable(msg.sender).call{value: eth_amount}("");
+        (bool success,) = payable(msg.sender).call{value: eth_amount}("");
         require(success, "Transfer failed");
         stEth.transfer(msg.sender, stEth_amount);
 

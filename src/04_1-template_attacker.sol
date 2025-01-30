@@ -5,24 +5,22 @@ import "forge-std/Test.sol"; //debug
 
 interface IVulnerable {
     function deposit() external payable;
-	function withdraw(uint256 amount) external;	
-	function claimKing() external returns (bool);
+    function withdraw(uint256 amount) external;
+    function claimKing() external returns (bool);
 }
 
-
 contract Attacker {
-
-	IVulnerable public target;
+    IVulnerable public target;
     bool public retrieving;
-	
-	constructor(address _target) {
-		target = IVulnerable(_target);
-	}
+
+    constructor(address _target) {
+        target = IVulnerable(_target);
+    }
 
     receive() external payable {
         /*
             Your code goes here!
-        */           
+        */
     }
 
     function exploit() public payable {
@@ -30,5 +28,4 @@ contract Attacker {
             Your code goes here!
         */
     }
-    
 }
